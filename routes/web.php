@@ -19,7 +19,6 @@ Route::middleware('auth')->group(function() {
     Route::get('/dashboard', function() {
         return Inertia::render('Dashboard');
     })->middleware('verified')->name('dashboard');
-    Route::apiResource('tasks', TaskController::class);
 });
 
 Route::middleware('auth')->group(function () {
