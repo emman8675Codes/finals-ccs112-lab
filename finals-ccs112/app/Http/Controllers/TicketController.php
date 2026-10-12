@@ -7,19 +7,34 @@ use App\Http\Requests\UpdateTicketRequest;
 use App\Models\Ticket;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class TicketController extends Controller
 {
-    public function index(): Response
-    {
-        $tickets = Ticket::where('user_id', auth()->id()) // only my tickets
-            ->orderByDesc('id')
-            ->paginate(10);
+    public function index(Request $request): Response
+{
+    $query = Ticket::where('user_id', auth()->id()); // only my tickets
 
-        return Inertia::render('Tickets/Index', ['tickets' => $tickets]);
+    $allowed = [
+        'status' => Ticket::STATUSES,
+        'priority' => Ticket::PRIORITIES,
+        'category' => Ticket::CATEGORIES,
+    ];
+
+    foreach ($allowed as $field => $values) {
+        if (in_array($request->query($field), $values, true)) { // only accept known values
+            $query->where($field, $request->query($field));
+        }
     }
+
+    return Inertia::render('Tickets/Index', [
+        'tickets' => $query->orderByDesc('id')->paginate(10)->withQueryString(), // keep filters on page 2+
+        'filters' => $request->only(array_keys($allowed)),
+        'options' => Ticket::options(),
+    ]);
+}
 
     public function create(): Response
     {

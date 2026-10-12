@@ -1,6 +1,7 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { PriorityBadge, StatusBadge } from '@/Components/Badges';
 import { Head, Link, router } from '@inertiajs/react';
+import { useState } from 'react';
 
 function destroyTicket(id) {
     if (confirm('Delete this ticket? This cannot be undone.')) { // confirm first
@@ -20,7 +21,41 @@ function Actions({ ticket }) {
     );
 }
 
-export default function Index({ tickets }) {
+const selectClass = 'w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500';
+
+function FilterSelect({ label, name, value, choices, onChange }) {
+    return (
+        <div>
+            <label htmlFor={name} className="block text-xs font-medium text-gray-500">{label}</label>
+            <select id={name} value={value} onChange={(e) => onChange(name, e.target.value)} className={selectClass}>
+                <option value="">All</option>
+                {choices.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                ))}
+            </select>
+        </div>
+    );
+}
+
+export default function Index({ tickets, filters, options }) {
+    const [values, setValues] = useState({
+        status: filters.status ?? '',
+        priority: filters.priority ?? '',
+        category: filters.category ?? '',
+    });
+
+    const hasFilters = Object.values(values).some((v) => v !== '');
+
+    // send only the filters that have a value
+    const applyFilters = (next) => {
+        setValues(next);
+        const params = Object.fromEntries(Object.entries(next).filter(([, v]) => v !== ''));
+        router.get(route('tickets.index'), params, { preserveState: true, replace: true });
+    };
+
+    const changeFilter = (name, value) => applyFilters({ ...values, [name]: value });
+    const clearFilters = () => applyFilters({ status: '', priority: '', category: '' });
+
     const date = (d) => new Date(d).toLocaleDateString();
 
     return (
@@ -31,16 +66,37 @@ export default function Index({ tickets }) {
 
             <div className="py-8">
                 <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                    {/* filter bar */}
+                    <div className="mb-4 grid grid-cols-1 gap-3 rounded-lg bg-white p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-4 lg:items-end">
+                        <FilterSelect label="Status" name="status" value={values.status} choices={options.statuses} onChange={changeFilter} />
+                        <FilterSelect label="Priority" name="priority" value={values.priority} choices={options.priorities} onChange={changeFilter} />
+                        <FilterSelect label="Category" name="category" value={values.category} choices={options.categories} onChange={changeFilter} />
+                        {hasFilters && (
+                            <button type="button" onClick={clearFilters} className="rounded-md bg-gray-100 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200">
+                                Clear filters
+                            </button>
+                        )}
+                    </div>
+
                     {tickets.data.length === 0 ? (
                         <div className="rounded-lg bg-white p-10 text-center shadow-sm">
-                            <p className="text-lg font-medium text-gray-900">No tickets yet</p>
-                            <p className="mt-1 text-sm text-gray-500">Create your first ticket to get started.</p>
-                            <Link
-                                href={route('tickets.create')}
-                                className="mt-4 inline-block rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500"
-                            >
-                                New Ticket
-                            </Link>
+                            {hasFilters ? (
+                                <>
+                                    <p className="text-lg font-medium text-gray-900">No matching tickets</p>
+                                    <p className="mt-1 text-sm text-gray-500">Try changing or clearing your filters.</p>
+                                </>
+                            ) : (
+                                <>
+                                    <p className="text-lg font-medium text-gray-900">No tickets yet</p>
+                                    <p className="mt-1 text-sm text-gray-500">Create your first ticket to get started.</p>
+                                    <Link
+                                        href={route('tickets.create')}
+                                        className="mt-4 inline-block rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500"
+                                    >
+                                        New Ticket
+                                    </Link>
+                                </>
+                            )}
                         </div>
                     ) : (
                         <>
